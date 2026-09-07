@@ -1,119 +1,164 @@
 <div align="center">
-  <img src="assets/Echo-new.png" alt="Echo Music Logo" width="120"/>
 
-  <h1>Echo Music</h1>
+# 🎵 Rhytma
 
-  <p><b>A modern Android music app with streaming, synced lyrics, offline playback, and an intuitive user experience.</b></p>
-  <p>
-    <a href="https://buymeacoffee.com/iad1tya">Buy me a Coffee</a> •
-    <a href="https://support.iad1tya.cyou">Support</a> •
-    <a href="https://instagram.com/iad1tya">Instagram</a> •
-    <a href="https://x.com/xad1tya">X</a>
-  </p>
+### A modern open-source music experience for Android.
+
+**Stream • Discover • Import • Listen**
+
+[Download Rhytma v1.0.0](https://github.com/archive97off-gif/Rhytma-/releases/tag/v1.0.0)
+
 </div>
 
-## Screenshots
+---
+
+## ✨ About Rhytma
+
+**Rhytma** is a modified open-source Android music application focused on a clean listening experience, playlist management, music discovery, and easy playlist importing.
+
+Rhytma is developed and modified by **Dhruv Homkar** and is based on the open-source **Echo Music** project, which itself builds upon **SimpMusic**.
+
+---
+
+## 📱 Screenshots
 
 <div align="center">
-  <img src="Screenshots/HomeScreen.png" alt="Home Screen" width="18%" style="border-radius: 10px; margin: 5px;" />
-  <img src="Screenshots/SearchPage.png" alt="Search Page" width="18%" style="border-radius: 10px; margin: 5px;" />
-  <img src="Screenshots/MusicPage.png" alt="Music Player" width="18%" style="border-radius: 10px; margin: 5px;" />
-  <img src="Screenshots/LyricsPage.png" alt="Lyrics Page" width="18%" style="border-radius: 10px; margin: 5px;" />
-  <img src="Screenshots/LibraryPage.png" alt="Library Page" width="18%" style="border-radius: 10px; margin: 5px;" />
+  <img src="Screenshots/HomeScreen.png" alt="Home Screen" width="18%" />
+  <img src="Screenshots/SearchPage.png" alt="Search Page" width="18%" />
+  <img src="Screenshots/MusicPage.png" alt="Music Player" width="18%" />
+  <img src="Screenshots/LyricsPage.png" alt="Lyrics Page" width="18%" />
+  <img src="Screenshots/LibraryPage.png" alt="Library Page" width="18%" />
 </div>
 
-## Features
+---
 
-* High-quality audio streaming (up to 256kbps for supported accounts).
-* Browse charts, podcasts, moods, and genres.
-* Comprehensive search functionality across the music catalog.
-* Playback data analytics and automated custom playlists.
-* Video playback support (1080p with subtitles).
-* Artificial Intelligence based song suggestions.
-* Crossfade and gapless playback capabilities.
-* Customizable application themes (Light, Dark, and dynamic colors).
-* Sleep timer functionality.
-* Android Auto integration for in-car listening.
-* Support for Spotify Canvas visualizations.
+## 🚀 Features
 
-## Architecture
+- 🎧 High-quality music streaming
+- 🔎 Music search and discovery
+- 🎼 Synced lyrics
+- 📚 Local playlist management
+- 📥 Spotify playlist importing
+- 🇮🇳 JioSaavn playlist importing
+- 🎬 Video playback support
+- 🤖 AI-based song suggestions
+- 🎨 Light, Dark and dynamic themes
+- 🔀 Crossfade and gapless playback
+- ⏱️ Sleep timer
+- 🚗 Android Auto support
+- 🖼️ Spotify Canvas support
+- 💾 Local caching and playback features
 
-Echo Music is built utilizing a modern Android and Kotlin Multiplatform (KMP) architecture to ensure scalability, maintainability, and high performance.
+---
 
-* **Kotlin Multiplatform (KMP):** The core business logic, domain models, and data access layers are encapsulated within a dedicated `core` Git submodule. This enables logic sharing across platforms and isolates critical services.
-* **UI Layer:** The application interface is built entirely with Jetpack Compose, offering a reactive and declarative UI paradigm.
-* **Media Playback:** Playback is handled by AndroidX Media3 (ExoPlayer), providing robust handling of audio streams, local caching, and gapless transitions.
-* **Dependency Injection:** Koin is utilized for dependency injection, decoupling module lifecycles and simplifying testing.
-* **Local Storage:** Room Database manages structured local data (playlists, favorites, cache metadata) while DataStore manages user preferences.
-* **Modularization:** The project is strictly modularized by feature and layer (e.g., `:core:data`, `:core:domain`, `:core:media3`, `:core:service:spotify`, `:core:service:lyricsService`). This structure reduces build times and enforces clear boundary separations.
+## 🔄 Playlist Importing
 
-## Infrastructure and Analytics
+### JioSaavn
 
-* **Firebase Integration:** Echo Music utilizes Firebase Crashlytics for real-time crash reporting and Firebase Analytics to monitor application performance and usage metrics. This telemetry data is critical for maintaining app stability and guiding future improvements.
-* **Monetization:** To sustain the infrastructure, development, and maintenance costs associated with this project, minimal advertisements are integrated within the application.
+Rhytma can import supported public JioSaavn playlists.
 
-## Transfer Playlists from Old Echo Music to New Echo Music
-This guide walks you through moving your playlists from the old Echo Music app to the new one, using a backup-and-convert process.
+Paste a supported playlist/share link into the importer and Rhytma retrieves the playlist metadata, matches the songs using its existing music search system, and creates a local Rhytma playlist.
 
-## Steps
+### Spotify
 
-**1. Back up your playlists (old app)**
-- Open the old Echo Music app
-- Go to **Settings**
-- Select **Backup and Restore**
-- Tap **Backup** → **Local Backup**
-- This creates a `.backup` file saved on your device
+Rhytma also contains Spotify playlist importing functionality.
 
-**2. Visit the migration site**
-- Open **https://echomusic.fun/migrate** in your browser
+Spotify integration uses Spotify authentication where required. Availability can depend on Spotify's API access and account restrictions.
 
-**3. Upload and convert the file**
-- Upload the `.backup` file from Step 1
-- The site processes it and generates a new `.json` file
-- Download this file to your device
+Rhytma does **not** extract Spotify audio or bypass Spotify authentication/DRM.
 
-**4. Open the new Echo Music app**
-- Install it (if not already) and launch it
+---
 
-**5. Import your playlists**
-- Go to **Settings**
-- Select **Backup and Restore**
-- Tap **Import Playlists**
+## 📥 Installation
 
-**6. Select the converted file**
-- Choose the `.json` file from Step 3
-- Your playlists will now appear in the new app
+### Universal APK — Recommended
 
-## Acknowledgements
+The Universal build is the easiest option for most users.
 
-Echo Music, developed by Aditya (@iad1tya), is built on top of the SimpMusic project. Huge thanks to the SimpMusic developers for their excellent open-source work, which forms the reliable foundation this project builds upon.
+### ARM64 APK
 
-## Installation
+A smaller ARM64 build is also provided for compatible modern Android devices.
 
-Download the latest pre-compiled APK from the [Releases Page](https://github.com/iad1tya/Echo-Music/releases/latest).
+### Download
 
-## Support
+➡️ **[Download Rhytma v1.0.0](https://github.com/archive97off-gif/Rhytma-/releases/tag/v1.0.0)**
 
-If you find Echo Music valuable, please consider supporting the development infrastructure:
+Download the APK from **Assets**, install it on your Android device, and launch Rhytma.
+
+---
+
+## 🏗️ Architecture
+
+Rhytma uses a modern Android/Kotlin Multiplatform architecture.
+
+- **Kotlin Multiplatform (KMP)** — shared core logic and services
+- **Jetpack Compose** — modern declarative Android UI
+- **AndroidX Media3 / ExoPlayer** — media playback
+- **Koin** — dependency injection
+- **Room Database** — local structured data
+- **DataStore** — application preferences
+- **Modular Architecture** — separate data, domain, media and service modules
+
+The shared core is maintained separately in:
+
+**[Rhytma Core](https://github.com/archive97off-gif/Rhytma-core)**
+
+---
+
+## 🛠️ Rhytma Modifications
+
+Rhytma includes modifications and additions made by **Dhruv Homkar**, including work on:
+
+- Rhytma branding
+- Spotify playlist importing
+- Spotify OAuth/PKCE integration
+- Spotify playlist pagination handling
+- JioSaavn playlist importing
+- Playlist metadata matching
+- Local playlist creation and saving
+- Importer UI and workflow improvements
+- Additional fixes and application changes
+
+---
+
+## 👨‍💻 Developer
+
+**Dhruv Homkar**
+
+GitHub: **[@archive97off-gif](https://github.com/archive97off-gif)**
+
+> Rhytma is a modified open-source project and includes work from its upstream projects and contributors.
+
+---
+
+## ❤️ Acknowledgements
+
+Rhytma would not exist without the open-source projects it is based upon.
+
+Special thanks to:
+
+- **Echo Music** — developed by Aditya (`@iad1tya`)
+- **SimpMusic** and its contributors
+- All upstream open-source contributors whose work remains part of Rhytma
+
+Original authorship and copyright notices remain applicable to their respective contributions.
+
+---
+
+## ⚖️ License
+
+Rhytma is distributed under the **GNU General Public License v3.0 (GPL-3.0)** in accordance with the licensing requirements of the upstream project.
+
+See the [`LICENSE`](LICENSE) file for full license information.
+
+---
 
 <div align="center">
-  <a href="https://buymeacoffee.com/iad1tya"><img src="assets/bmac.png" width="140" style="margin: 10px; border-radius: 8px;"/></a>
-  <a href="https://intradeus.github.io/http-protocol-redirector/?r=upi://pay?pa=iad1tya@upi&pn=Aditya%20Yadav"><img src="assets/upi.svg" width="100" style="margin: 10px; border-radius: 8px;"/></a>
-  <a href="https://www.patreon.com/cw/iad1tya"><img src="assets/patreon3.png" width="100" style="margin: 10px; border-radius: 8px;"/></a>
+
+### 🎵 Rhytma
+
+**Modified & maintained by Dhruv Homkar**
+
+Made possible by open source ❤️
+
 </div>
-
-<details>
-<summary><b>Cryptocurrency Options</b></summary>
-<br>
-
-| Network | Address |
-| :--- | :--- |
-| **Bitcoin** | `bc1qcvyr7eekha8uytmffcvgzf4h7xy7shqzke35fy` |
-| **Ethereum** | `0x51bc91022E2dCef9974D5db2A0e22d57B360e700` |
-| **Solana** | `9wjca3EQnEiqzqgy7N5iqS1JGXJiknMQv6zHgL96t94S` |
-
-</details>
-
-## License
-
-Echo Music is licensed under the GPL-3.0 License. See the LICENSE file for details.
