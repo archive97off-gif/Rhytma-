@@ -43,8 +43,6 @@ dependencies {
     implementation(libs.material)
     
     // Firebase Crashlytics is telemetry and is intentionally absent from debug.
-    add("releaseImplementation", platform("com.google.firebase:firebase-bom:33.1.2"))
-    add("releaseImplementation", "com.google.firebase:firebase-crashlytics-ktx")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

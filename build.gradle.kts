@@ -20,8 +20,6 @@ plugins {
     alias(libs.plugins.osdetector) apply false
     alias(libs.plugins.conveyor) apply false
     alias(libs.plugins.compose.hotReload) apply false
-    id("com.google.gms.google-services") version "4.4.2" apply false
-    id("com.google.firebase.crashlytics") version "3.0.2" apply false
 }
 
 tasks.register<Delete>("Clean") {

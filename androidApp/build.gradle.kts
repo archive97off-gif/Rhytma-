@@ -4,8 +4,6 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
-    id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -136,7 +134,7 @@ android {
     }
 }
 
-// The checked-in google-services.json belongs to Echo and has no Rhytma debug
+
 // client. Firebase is optional telemetry, so do not process it for debug builds.
 tasks.configureEach {
     if (name == "processDebugGoogleServices" ||
@@ -167,10 +165,5 @@ dependencies {
 
     implementation(projects.composeApp)
     implementation(projects.data)
-    
-    add("releaseImplementation", platform("com.google.firebase:firebase-bom:33.1.2"))
-    add("releaseImplementation", "com.google.firebase:firebase-crashlytics-ktx")
-    add("releaseImplementation", "com.google.firebase:firebase-analytics-ktx")
-
     implementation(projects.crashlytics)
 }
