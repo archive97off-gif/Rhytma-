@@ -1,0 +1,4 @@
+<resources>
+    <!-- Public Client ID only. Alternatively enter it in Import playlist > Connect Spotify. -->
+    <string name="spotify_oauth_client_id" translatable="false"></string>
+</resources>

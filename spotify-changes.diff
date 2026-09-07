@@ -1,0 +1,172 @@
+--- before/core\service\spotify\src\commonMain\kotlin\echo\music\iad1tya\spotify\Spotify.kt
++++ core\service\spotify\src\commonMain\kotlin\echo\music\iad1tya\spotify\Spotify.kt
+@@ -78,10 +78,16 @@
+     suspend fun getPlaylist(
+         playlistId: String,
+         authToken: String,
+-        offset: Int = 0,
+-        limit: Int = 100,
+     ) = runCatching {
+-        spotifyClient.getSpotifyPlaylist(playlistId, authToken, offset, limit)
++        spotifyClient.getSpotifyPlaylist(playlistId, authToken)
++    }
++
++    suspend fun getPlaylistItems(
++        playlistId: String,
++        authToken: String,
++        pageUrl: String,
++    ) = runCatching {
++        spotifyClient.getSpotifyPlaylistItems(playlistId, authToken, pageUrl)
+     }
+ 
+     suspend fun getSpotifyLyrics(
+--- before/core\service\spotify\src\commonMain\kotlin\echo\music\iad1tya\spotify\SpotifyClient.kt
++++ core\service\spotify\src\commonMain\kotlin\echo\music\iad1tya\spotify\SpotifyClient.kt
+@@ -215,25 +215,29 @@
+         )
+     }
+ 
+-    suspend fun getSpotifyPlaylist(
+-        playlistId: String,
+-        authToken: String,
+-        offset: Int,
+-        limit: Int,
+-    ): String {
+-        val response = spotifyClient.get("https://api.spotify.com/v1/playlists/$playlistId") {
++    suspend fun getSpotifyPlaylist(playlistId: String, authToken: String): String =
++        getPlaylistResponse("https://api.spotify.com/v1/playlists/$playlistId", authToken)
++
++    suspend fun getSpotifyPlaylistItems(playlistId: String, authToken: String, pageUrl: String): String {
++        SpotifyPlaylistItems.requirePageUrl(playlistId, pageUrl)
++        return getPlaylistResponse(pageUrl, authToken)
++    }
++
++    private suspend fun getPlaylistResponse(url: String, authToken: String): String {
++        val response = spotifyClient.get(url) {
+             userAgent(USER_AGENT)
+             header(HttpHeaders.Authorization, "Bearer $authToken")
+-            parameter("offset", offset)
+-            parameter("limit", limit)
+-            parameter("fields", "name,images,tracks(total,next,items(track(name,artists(name),duration_ms)))")
+-        }
+-        if (response.status.value !in 200..299) {
+-            error("Spotify returned HTTP ${response.status.value}")
+-        }
+-        return response.bodyAsText()
+-    }
+-    // {"searchTerm":"trÃ¬nh+hieuthuhai","offset":0,"limit":20,"numberOfTopResults":20,"includeAudiobooks":true,"includePreReleases":false}
++        }
++        when (response.status.value) {
++            in 200..299 -> return response.bodyAsText()
++            401 -> error("Spotify authorization has expired or was rejected. Playlist import requires a valid authorized Spotify access token.")
++            403 -> error("Spotify does not allow this account or application to read this playlist. Check playlist permissions and Spotify API access restrictions.")
++            404 -> error("Spotify playlist was not found or is not accessible to this account.")
++            429 -> error("Spotify temporarily rate-limited playlist import. Please try again later.")
++            else -> error("Spotify playlist request failed (HTTP ${response.status.value}). Please try again later.")
++        }
++    }
++    // {"searchTerm":"trÃƒÂ¬nh+hieuthuhai","offset":0,"limit":20,"numberOfTopResults":20,"includeAudiobooks":true,"includePreReleases":false}
+     // {"persistedQuery":{"version":1,"sha256Hash":"e4ed1f91a2cc5415befedb85acf8671dc1a4bf3ca1a5b945a6386101a22e28a6"}}
+ 
+     suspend fun getSpotifyCanvas(
+--- before/composeApp\src\commonMain\kotlin\echo\music\iad1tya\importer\SpotifyPlaylistImporter.kt
++++ composeApp\src\commonMain\kotlin\echo\music\iad1tya\importer\SpotifyPlaylistImporter.kt
+@@ -2,11 +2,13 @@
+ 
+ import echo.music.iad1tya.domain.manager.DataStoreManager
+ import echo.music.iad1tya.spotify.Spotify
++import echo.music.iad1tya.spotify.SpotifyPlaylistItems
++import kotlinx.coroutines.CancellationException
+ import kotlinx.coroutines.flow.first
+ import kotlinx.serialization.json.Json
++import kotlinx.serialization.json.JsonArray
++import kotlinx.serialization.json.JsonObject
+ import kotlinx.serialization.json.contentOrNull
+-import kotlinx.serialization.json.intOrNull
+-import kotlinx.serialization.json.jsonArray
+ import kotlinx.serialization.json.jsonObject
+ import kotlinx.serialization.json.jsonPrimitive
+ import kotlin.time.Clock
+@@ -19,48 +21,24 @@
+     override val provider = PlaylistProvider.SPOTIFY
+     private val json = Json { ignoreUnknownKeys = true }
+ 
+-    override suspend fun fetch(url: String): Result<ImportedPlaylist> = runCatching {
++    override suspend fun fetch(url: String): Result<ImportedPlaylist> = try {
+         val playlistId = parsePlaylistId(url) ?: error("Enter a valid Spotify playlist link")
+         val token = getToken()
+-        var offset = 0
+-        var title = ""
+-        var thumbnail: String? = null
+-        val tracks = mutableListOf<ImportedTrack>()
+-
+-        while (true) {
+-            val root = json.parseToJsonElement(
+-                spotify.getPlaylist(playlistId, token, offset).getOrThrow(),
+-            ).jsonObject
+-            if (title.isBlank()) {
+-                title = root["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+-                thumbnail = root["images"]?.jsonArray?.firstOrNull()?.jsonObject
+-                    ?.get("url")?.jsonPrimitive?.contentOrNull
+-            }
+-            val items = root["tracks"]?.jsonObject?.get("items")?.jsonArray.orEmpty()
+-            items.forEach { item ->
+-                val track = item.jsonObject["track"]?.jsonObject ?: return@forEach
+-                val trackTitle = track["name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+-                val artists = track["artists"]?.jsonArray.orEmpty().mapNotNull {
+-                    it.jsonObject["name"]?.jsonPrimitive?.contentOrNull
+-                }
+-                if (trackTitle.isNotBlank() && artists.isNotEmpty()) {
+-                    tracks += ImportedTrack(
+-                        title = trackTitle,
+-                        artists = artists,
+-                        durationMs = track["duration_ms"]?.jsonPrimitive?.intOrNull ?: 0,
+-                    )
+-                }
+-            }
+-            if (items.isEmpty() || items.size < 100) break
+-            offset += items.size
++        val root = json.parseToJsonElement(spotify.getPlaylist(playlistId, token).getOrThrow()).jsonObject
++        val title = root["name"]?.jsonPrimitive?.contentOrNull
++            ?.takeIf(String::isNotBlank) ?: error("Spotify playlist has no name")
++        val thumbnail = ((root["images"] as? JsonArray)?.firstOrNull() as? JsonObject)
++            ?.get("url")?.jsonPrimitive?.contentOrNull
++        val tracks = SpotifyPlaylistItems.fetchAll(playlistId) { pageUrl ->
++            spotify.getPlaylistItems(playlistId, token, pageUrl).getOrThrow()
++        }.map { track ->
++            ImportedTrack(title = track.title, artists = track.artists, durationMs = track.durationMs)
+         }
+-        if (title.isBlank()) error("Spotify playlist has no name")
+-        ImportedPlaylist(
+-            title = title,
+-            description = null,
+-            thumbnail = thumbnail,
+-            tracks = tracks,
+-        )
++        Result.success(ImportedPlaylist(title = title, thumbnail = thumbnail, tracks = tracks))
++    } catch (cancelled: CancellationException) {
++        throw cancelled
++    } catch (error: Exception) {
++        Result.failure(error)
+     }
+ 
+     @OptIn(ExperimentalTime::class)
+@@ -68,12 +46,12 @@
+         val existing = dataStoreManager.spotifyPersonalToken.first()
+         val expiry = dataStoreManager.spotifyPersonalTokenExpires.first()
+         if (existing.isNotBlank() && expiry > Clock.System.now().toEpochMilliseconds()) return existing
+-        val spdc = dataStoreManager.spdc.first().removePrefix("sp_dc=")
+-        if (spdc.isBlank()) error("Sign in to Spotify first")
+-        val refreshed = spotify.getPersonalTokenWithTotp(spdc).getOrThrow()
+-        dataStoreManager.setSpotifyPersonalToken(refreshed.accessToken)
+-        dataStoreManager.setSpotifyPersonalTokenExpires(refreshed.accessTokenExpirationTimestampMs)
+-        return refreshed.accessToken
++        // Do not mint/refresh Web API credentials via the legacy web-player cookie/TOTP endpoints.
++        error(
++            "Spotify authorization is required to import playlists, including public playlists. " +
++                "No unexpired Spotify access token is available. This build does not yet provide " +
++                "supported Spotify authorization for playlist import; a playlist URL or web login alone is not enough.",
++        )
+     }
+ 
+     private fun parsePlaylistId(value: String): String? =

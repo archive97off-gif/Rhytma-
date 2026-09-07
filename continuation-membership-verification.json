@@ -1,0 +1,99 @@
+{
+  "playlistId": 1,
+  "title": "Hindi Hit Songs",
+  "storedTracks": "[\"kb_6Vz-k7Wc\",\"i1o1p_DD6TU\",\"dkdrMG-uXdQ\",\"v2TsWj3wxHM\",\"-BJt4fCAtZE\",\"wtJWkeE-nRE\",\"KrJ5c-Egz-U\",\"TaTZb7NXja0\",\"uT_HXrrmHX8\",\"NwgOjWWTwyM\",\"lnY-RsN1Hr0\",\"f0i95p5l67Y\",\"pRzS9QLvgZk\",\"KmrEYUXed7Y\",\"N7jDUBRVQVA\",\"tNc2coVC2aw\",\"XtZTpxnrHAc\",\"oyr9_tu_F2U\"]",
+  "membershipRows": 18,
+  "positionsContiguous": true,
+  "songs": [
+    {
+      "position": 0,
+      "songId": "kb_6Vz-k7Wc",
+      "title": "Tera Mera Rishta -  New Version (From \"Awarapan 2\")"
+    },
+    {
+      "position": 1,
+      "songId": "i1o1p_DD6TU",
+      "title": "Gehra Hua (From \"Dhurandhar\")"
+    },
+    {
+      "position": 2,
+      "songId": "dkdrMG-uXdQ",
+      "title": "Toh Phir Aao - New Version (From \"Awarapan 2\")"
+    },
+    {
+      "position": 3,
+      "songId": "v2TsWj3wxHM",
+      "title": "Darmiyaan"
+    },
+    {
+      "position": 4,
+      "songId": "-BJt4fCAtZE",
+      "title": "Arz Kiya Hai | Coke Studio Bharat"
+    },
+    {
+      "position": 5,
+      "songId": "wtJWkeE-nRE",
+      "title": "Kaafi Hai Na"
+    },
+    {
+      "position": 6,
+      "songId": "KrJ5c-Egz-U",
+      "title": "Khat"
+    },
+    {
+      "position": 7,
+      "songId": "TaTZb7NXja0",
+      "title": "Jaiye Sajana - Recreated"
+    },
+    {
+      "position": 8,
+      "songId": "uT_HXrrmHX8",
+      "title": "Sitaare (From \"Ikkis\")"
+    },
+    {
+      "position": 9,
+      "songId": "NwgOjWWTwyM",
+      "title": "Mashooqa (From \u201cCocktail 2\u201d)"
+    },
+    {
+      "position": 10,
+      "songId": "lnY-RsN1Hr0",
+      "title": "Deewaana Deewaana"
+    },
+    {
+      "position": 11,
+      "songId": "f0i95p5l67Y",
+      "title": "Dhurandhar The Revenge - Aari Aari"
+    },
+    {
+      "position": 12,
+      "songId": "pRzS9QLvgZk",
+      "title": "Dhurandhar - Title Track (From \"Dhurandhar\")"
+    },
+    {
+      "position": 13,
+      "songId": "KmrEYUXed7Y",
+      "title": "Dil Lagana Mana Tha"
+    },
+    {
+      "position": 14,
+      "songId": "N7jDUBRVQVA",
+      "title": "Tum Ho Toh (Movie: Saiyaara)"
+    },
+    {
+      "position": 15,
+      "songId": "tNc2coVC2aw",
+      "title": "Sahiba"
+    },
+    {
+      "position": 16,
+      "songId": "XtZTpxnrHAc",
+      "title": "Aaj Ki Raat (From \"Stree 2\")"
+    },
+    {
+      "position": 17,
+      "songId": "oyr9_tu_F2U",
+      "title": "Tu Hain Toh Main Hoon (From \"Sky Force\")"
+    }
+  ]
+}

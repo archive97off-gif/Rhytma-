@@ -1,0 +1,12 @@
+{
+  "changedExistingFiles": [
+    "composeApp\\src\\commonMain\\kotlin\\echo\\music\\iad1tya\\importer\\SpotifyPlaylistImporter.kt",
+    "core\\service\\spotify\\src\\commonMain\\kotlin\\echo\\music\\iad1tya\\spotify\\Spotify.kt",
+    "core\\service\\spotify\\src\\commonMain\\kotlin\\echo\\music\\iad1tya\\spotify\\SpotifyClient.kt"
+  ],
+  "addedSourceFiles": [
+    "core/service/spotify/src/commonMain/kotlin/echo/music/iad1tya/spotify/SpotifyPlaylistItems.kt",
+    "core/service/spotify/src/commonTest/kotlin/echo/music/iad1tya/spotify/SpotifyPlaylistItemsTest.kt"
+  ],
+  "allOtherBaselineFilesUnchanged": true
+}
