@@ -11,8 +11,6 @@ local.properties
 .kotlin/
 
 # Mac
-.DS_Store
-
 # build folders
 build/
 app/build/
@@ -25,13 +23,11 @@ crashlytics-empty/build/
 lastfm/build/
 lastfm-empty/build/
 */build/
-
 # Gradle
 .gradle/
 gradle/wrapper/gradle-wrapper.jar
-
 # Kotlin Multiplatform
 /.kotlin
-
 # Logs
 *.log
+*.apk
