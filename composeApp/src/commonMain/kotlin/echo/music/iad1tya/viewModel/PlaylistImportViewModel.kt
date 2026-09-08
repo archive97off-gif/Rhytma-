@@ -16,12 +16,17 @@ import echo.music.iad1tya.importer.JioSaavnPlaylistImporter
 import echo.music.iad1tya.importer.PlaylistImporter
 import echo.music.iad1tya.importer.PlaylistProvider
 import echo.music.iad1tya.viewModel.base.BaseViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 data class PlaylistImportState(
@@ -33,6 +38,10 @@ data class PlaylistImportState(
     val progress: Int = 0,
     val error: String? = null,
     val savedPlaylistId: Long? = null,
+    val isFileImport: Boolean = false,
+    val isSaving: Boolean = false,
+    val matchingComplete: Boolean = false,
+    val currentTrack: ImportedTrack? = null,
 )
 
 class PlaylistImportViewModel(
@@ -50,57 +59,118 @@ class PlaylistImportViewModel(
         PlaylistProvider.JIOSAAVN to jioSaavnImporter,
     )
 
+    private var operation: Job? = null
+
     fun setUrl(url: String) {
         _state.value = _state.value.copy(url = url, error = null)
     }
 
     fun setProvider(provider: PlaylistProvider) {
-        _state.value = state.value.copy(provider = provider, url = "", playlist = null, matches = emptyList(), error = null)
+        if (state.value.isLoading) return
+        _state.value = PlaylistImportState(provider = provider)
+    }
+
+    fun showFileError(message: String) {
+        _state.value = state.value.copy(error = message)
+    }
+
+    fun chooseFile(read: suspend () -> ImportedPlaylist) {
+        if (state.value.isLoading) return
+        _state.value = PlaylistImportState(isLoading = true, isFileImport = true)
+        operation = viewModelScope.launch {
+            try {
+                val playlist = withContext(Dispatchers.IO) { read() }
+                currentCoroutineContext().ensureActive()
+                _state.value = state.value.copy(playlist = playlist, isLoading = false)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                val message = if (error is IllegalArgumentException || error is IllegalStateException) error.message
+                    else "Couldn't read this file. Download it to your device and try again."
+                _state.value = state.value.copy(isLoading = false, error = message)
+            }
+        }
+    }
+
+    fun cancelImport() {
+        if (state.value.isSaving) return
+        operation?.cancel()
+        _state.value = state.value.copy(isLoading = false, currentTrack = null, matches = emptyList(), progress = 0, matchingComplete = false)
+    }
+
+    fun clearFile() {
+        if (!state.value.isLoading) _state.value = PlaylistImportState(provider = state.value.provider)
     }
 
     fun fetchAndMatch() {
-        val url = state.value.url.trim()
-        if (url.isBlank() || state.value.isLoading) return
-        viewModelScope.launch(Dispatchers.Default) {
-            _state.value = state.value.copy(isLoading = true, error = null, playlist = null, matches = emptyList())
-            importers.getValue(state.value.provider).fetch(url).fold(
-                onSuccess = { playlist ->
-                    _state.value = state.value.copy(playlist = playlist, progress = 0)
-                    val matches = playlist.tracks.mapIndexed { index, track ->
-                        val match = matchTrack(track)
-                        _state.value = state.value.copy(
-                            matches = _state.value.matches + match,
-                            progress = ((index + 1) * 100 / playlist.tracks.size.coerceAtLeast(1)),
-                        )
-                        match
-                    }
-                    _state.value = state.value.copy(isLoading = false, matches = matches, progress = 100)
-                },
-                onFailure = { error ->
-                    _state.value = state.value.copy(isLoading = false, error = error.message ?: "Unable to load Spotify playlist")
-                },
-            )
+        val current = state.value
+        val url = current.url.trim()
+        if (url.isBlank() || current.isLoading) return
+        _state.value = PlaylistImportState(provider = current.provider, url = url, isLoading = true)
+        operation = viewModelScope.launch {
+            try {
+                val playlist = withContext(Dispatchers.IO) { importers.getValue(current.provider).fetch(url).getOrThrow() }
+                matchPlaylist(playlist)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                _state.value = state.value.copy(isLoading = false, currentTrack = null, error = error.message ?: "Unable to load playlist. Check the link and connection, then try again.")
+            }
         }
+    }
+
+    fun importFile() {
+        val current = state.value
+        val playlist = current.playlist ?: return
+        if (current.isLoading || !current.isFileImport || current.savedPlaylistId != null) return
+        _state.value = current.copy(isLoading = true, matches = emptyList(), error = null, matchingComplete = false)
+        operation = viewModelScope.launch {
+            matchPlaylist(playlist)
+            currentCoroutineContext().ensureActive()
+            saveMatchedTracks()
+        }
+    }
+
+    private suspend fun matchPlaylist(playlist: ImportedPlaylist) {
+        currentCoroutineContext().ensureActive()
+        _state.value = state.value.copy(playlist = playlist, progress = 0)
+        val matches = mutableListOf<ImportedTrackMatch>()
+        // Match each metadata identity once, but retain intentional source repetitions in order.
+        val cache = mutableMapOf<ImportedTrack, ImportedTrackMatch>()
+        for (track in playlist.tracks) {
+            currentCoroutineContext().ensureActive()
+            _state.value = state.value.copy(currentTrack = track)
+            val match = cache[track] ?: try {
+                withTimeoutOrNull(30_000) { withContext(Dispatchers.Default) { matchTrack(track) } } ?: ImportedTrackMatch(track, null, 0.0)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { ImportedTrackMatch(track, null, 0.0) }
+            currentCoroutineContext().ensureActive()
+            cache[track] = match
+            matches.add(match)
+            _state.value = state.value.copy(matches = matches.toList(), progress = matches.size * 100 / playlist.tracks.size.coerceAtLeast(1))
+        }
+        _state.value = state.value.copy(isLoading = false, currentTrack = null, matchingComplete = true, progress = 100)
     }
 
     fun saveMatchedTracks() {
         val current = state.value
         val playlist = current.playlist ?: return
         val matched = current.matches.mapNotNull { it.song }
-        if (matched.isEmpty() || current.isLoading) return
-        viewModelScope.launch(Dispatchers.IO) {
-            _state.value = current.copy(isLoading = true, error = null)
-            matched.forEach { songRepository.insertSong(it).firstOrNull() }
-            val videoIds = matched.map { it.videoId }
-            val playlistId = localPlaylistRepository.insertLocalPlaylistWithTracks(
-                LocalPlaylistEntity(
-                    title = playlist.title,
-                    thumbnail = playlist.thumbnail,
-                    tracks = videoIds,
-                ),
-                videoIds,
-            )
-            _state.value = _state.value.copy(isLoading = false, savedPlaylistId = playlistId)
+        if (matched.isEmpty() || current.isLoading || current.savedPlaylistId != null) return
+        _state.value = current.copy(isLoading = true, isSaving = true, error = null)
+        operation = viewModelScope.launch {
+            try {
+                val playlistId = withContext(Dispatchers.IO) {
+                    matched.distinctBy { it.videoId }.forEach { songRepository.insertSong(it).first() }
+                    val videoIds = matched.map { it.videoId }
+                    localPlaylistRepository.insertLocalPlaylistWithTracks(
+                        LocalPlaylistEntity(title = playlist.title, thumbnail = playlist.thumbnail, tracks = videoIds), videoIds,
+                    )
+                }
+                check(playlistId > 0) { "Playlist wasn't saved." }
+                _state.value = state.value.copy(isLoading = false, isSaving = false, savedPlaylistId = playlistId)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) {
+                _state.value = state.value.copy(isLoading = false, isSaving = false, error = "Couldn't save the playlist. Please try again.")
+            }
         }
     }
 
