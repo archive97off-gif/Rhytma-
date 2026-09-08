@@ -12,6 +12,18 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // Restore with scripts/windows/restore-compottie-cache.ps1 when the
+        // Compose 1.12 snapshot has expired upstream. Keep its original metadata.
+        maven {
+            name = "cachedCompottieSnapshot"
+            url = uri(".gradle/compottie-maven")
+            content {
+                includeVersionByRegex(
+                    "io\\.github\\.alexzhirkevich", "compottie(-.*)?",
+                    "2\\.2\\.2-compose-1\\.12-SNAPSHOT"
+                )
+            }
+        }
         google()
         mavenCentral()
         gradlePluginPortal()

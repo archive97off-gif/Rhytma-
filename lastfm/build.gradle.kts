@@ -8,6 +8,8 @@ plugins {
 }
 
 kotlin {
+    // :data commonMain also targets JVM, including during Android host-test checks.
+    jvm()
     android {
         namespace = "echo.music.iad1tya.lastfm"
         compileSdk = 37

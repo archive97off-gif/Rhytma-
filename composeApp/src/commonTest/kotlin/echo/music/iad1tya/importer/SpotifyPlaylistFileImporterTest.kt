@@ -64,6 +64,16 @@ class SpotifyPlaylistFileImporterTest {
         assertFails { parse("txt", "Unstructured text") }
         assertFails { parse("txt", "Example - Part - Inventor") }
     }
+    @Test fun artistFirstExportsPreserveSeparatorsInTitles() {
+        for ((extension, text) in listOf(
+            "csv" to "Inventor - Example - Extended Version",
+            "txt" to "Artist - Title\nInventor - Example - Extended Version",
+        )) {
+            val track = parse(extension, text).tracks.single()
+            assertEquals(listOf("Inventor"), track.artists)
+            assertEquals("Example - Extended Version", track.title)
+        }
+    }
     @Test fun simpleJson() {
         val result = parse("json", """{"name":"Evening","tracks":[{"title":"Example","artist":"Inventor"}]}""")
         assertEquals("Evening", result.title)
