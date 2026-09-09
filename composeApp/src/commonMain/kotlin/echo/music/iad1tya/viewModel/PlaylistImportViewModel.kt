@@ -15,6 +15,7 @@ import echo.music.iad1tya.importer.SpotifyPlaylistImporter
 import echo.music.iad1tya.importer.JioSaavnPlaylistImporter
 import echo.music.iad1tya.importer.PlaylistImporter
 import echo.music.iad1tya.importer.PlaylistProvider
+import echo.music.iad1tya.importer.SpotifyTrackMatcher
 import echo.music.iad1tya.viewModel.base.BaseViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -123,23 +124,40 @@ class PlaylistImportViewModel(
         if (current.isLoading || !current.isFileImport || current.savedPlaylistId != null) return
         _state.value = current.copy(isLoading = true, matches = emptyList(), error = null, matchingComplete = false)
         operation = viewModelScope.launch {
-            matchPlaylist(playlist)
-            currentCoroutineContext().ensureActive()
-            saveMatchedTracks()
+            if (matchPlaylist(playlist)) {
+                currentCoroutineContext().ensureActive()
+                saveMatchedTracks()
+            }
         }
     }
 
-    private suspend fun matchPlaylist(playlist: ImportedPlaylist) {
+    private suspend fun matchPlaylist(playlist: ImportedPlaylist): Boolean {
         currentCoroutineContext().ensureActive()
         _state.value = state.value.copy(playlist = playlist, progress = 0)
+        val spotifyMatcher = SpotifyTrackMatcher(search = { query ->
+            searchRepository.getSearchDataSongForImport(query).first()
+        })
         val matches = mutableListOf<ImportedTrackMatch>()
         // Match each metadata identity once, but retain intentional source repetitions in order.
         val cache = mutableMapOf<ImportedTrack, ImportedTrackMatch>()
         for (track in playlist.tracks) {
             currentCoroutineContext().ensureActive()
             _state.value = state.value.copy(currentTrack = track)
-            val match = cache[track] ?: try {
-                withTimeoutOrNull(30_000) { withContext(Dispatchers.Default) { matchTrack(track) } } ?: ImportedTrackMatch(track, null, 0.0)
+            val match = cache[track] ?: if (state.value.provider == PlaylistProvider.SPOTIFY) {
+                when (val outcome = withContext(Dispatchers.Default) { spotifyMatcher.match(track) }) {
+                    is SpotifyTrackMatcher.Outcome.Matched -> ImportedTrackMatch(track, outcome.candidate.toSongEntity(), outcome.confidence)
+                    is SpotifyTrackMatcher.Outcome.NoMatch -> ImportedTrackMatch(track, null, outcome.confidence)
+                    SpotifyTrackMatcher.Outcome.SearchFailed -> {
+                        _state.value = state.value.copy(
+                            isLoading = false, currentTrack = null, matchingComplete = false,
+                            error = "Search failed for '${track.title}'. This track was not marked unmatched. Check your connection and retry the import; nothing has been saved.",
+                        )
+                        return false
+                    }
+                }
+            } else try {
+                withTimeoutOrNull(30_000) { withContext(Dispatchers.Default) { matchJioSaavnTrack(track) } }
+                    ?: ImportedTrackMatch(track, null, 0.0)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { ImportedTrackMatch(track, null, 0.0) }
             currentCoroutineContext().ensureActive()
@@ -148,13 +166,14 @@ class PlaylistImportViewModel(
             _state.value = state.value.copy(matches = matches.toList(), progress = matches.size * 100 / playlist.tracks.size.coerceAtLeast(1))
         }
         _state.value = state.value.copy(isLoading = false, currentTrack = null, matchingComplete = true, progress = 100)
+        return true
     }
 
     fun saveMatchedTracks() {
         val current = state.value
         val playlist = current.playlist ?: return
         val matched = current.matches.mapNotNull { it.song }
-        if (matched.isEmpty() || current.isLoading || current.savedPlaylistId != null) return
+        if (!current.matchingComplete || matched.isEmpty() || current.isLoading || current.savedPlaylistId != null) return
         _state.value = current.copy(isLoading = true, isSaving = true, error = null)
         operation = viewModelScope.launch {
             try {
@@ -173,8 +192,8 @@ class PlaylistImportViewModel(
             }
         }
     }
-
-    private suspend fun matchTrack(track: ImportedTrack): ImportedTrackMatch {
+    // Preserve the pre-experiment JioSaavn matcher; Spotify uses SpotifyTrackMatcher.
+    private suspend fun matchJioSaavnTrack(track: ImportedTrack): ImportedTrackMatch {
         val query = (track.artists + track.title).joinToString(" ")
         val result = searchRepository.getSearchDataSong(query).first()
         val candidates = (result as? Resource.Success<ArrayList<SongsResult>>)?.data.orEmpty()
