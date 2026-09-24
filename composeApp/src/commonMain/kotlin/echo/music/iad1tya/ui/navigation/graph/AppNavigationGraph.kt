@@ -56,6 +56,7 @@ fun AppNavigationGraph(
         // Bottom bar destinations
         composable<HomeDestination> {
             HomeScreen(
+                innerPadding = innerPadding,
                 onScrolling = onScrolling,
                 navController = navController,
             )

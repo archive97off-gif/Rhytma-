@@ -73,6 +73,7 @@ internal inline fun <reified T> GridLibraryPlaylist(
     emptyText: StringResource,
     noinline onScrolling: (onTop: Boolean) -> Unit = { _ -> },
     noinline createNewPlaylist: (() -> Unit)? = null,
+    noinline header: (@Composable () -> Unit)? = null,
     noinline onReload: () -> Unit,
 ) {
     Logger.w("GridLibraryPlaylist", "Generic Type: ${T::class.simpleName}")
@@ -120,6 +121,11 @@ internal inline fun <reified T> GridLibraryPlaylist(
                     contentPadding = contentPadding,
                     state = state,
                 ) {
+                    if (header != null) {
+                        item(key = "playlist_header", span = { GridItemSpan(maxLineSpan) }) {
+                            header()
+                        }
+                    }
                     if (createNewPlaylist != null) {
                         item {
                             Box(

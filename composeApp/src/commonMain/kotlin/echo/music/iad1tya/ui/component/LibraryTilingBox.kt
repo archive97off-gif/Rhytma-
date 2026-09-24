@@ -105,17 +105,6 @@ fun LibraryTilingBox(navController: NavController) {
             }
         }
 
-        Text(
-            text = "RHYTMA IMPORT DEBUG",
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp)
-                    .background(Color.Magenta)
-                    .padding(16.dp),
-            style = typo().titleSmall,
-            color = Color.Black,
-        )
     }
 }
 

@@ -211,6 +211,13 @@ fun LibraryScreen(
                         LibraryTilingBox(navController)
                     }
 
+                    item(key = "import_playlist") {
+                        PlaylistImportEntryCard(
+                            onClick = { navController.navigate(SpotifyPlaylistImportDestination) },
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+
                     if (!listCanvasSong.data.isNullOrEmpty()) {
                         item {
                             LibraryItem(
@@ -273,6 +280,12 @@ fun LibraryScreen(
                     emptyText = Res.string.no_playlists_added,
                     createNewPlaylist = {
                         showAddSheet = true
+                    },
+                    header = {
+                        PlaylistImportEntryCard(
+                            onClick = { navController.navigate(SpotifyPlaylistImportDestination) },
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
                     },
                 ) {
                     viewModel.getLocalPlaylist()

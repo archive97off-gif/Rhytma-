@@ -134,10 +134,10 @@ class SpotifyTrackMatcherTest {
         assertEquals(1, fake.retries)
     }
 
-    @Test fun successfulEmptyResultsUseOnlyOneFallbackWithoutRetry() = runBlocking<Unit> {
+    @Test fun successfulEmptyResultsUseBoundedFallbacksWithoutRetry() = runBlocking<Unit> {
         val fake = FakeSearch { _, _ -> success() }
         assertIs<SpotifyTrackMatcher.Outcome.NoMatch>(fake.matcher().match(track()))
-        assertEquals(listOf("the inventors paper moon", "paper moon the inventors"), fake.queries)
+        assertEquals(listOf("the inventors paper moon", "paper moon the inventors", "paper moon"), fake.queries)
         assertEquals(0, fake.retries)
     }
 
@@ -218,7 +218,7 @@ class SpotifyTrackMatcherTest {
         val fake = FakeSearch { _, _ -> success() }
         val matcher = fake.matcher()
         repeat(2) { assertIs<SpotifyTrackMatcher.Outcome.NoMatch>(matcher.match(track())) }
-        assertEquals(2, fake.queries.size)
+        assertEquals(3, fake.queries.size)
     }
 
     @Test fun failedSearchIsNotCachedAsNegativeMatch() = runBlocking<Unit> {
@@ -235,5 +235,112 @@ class SpotifyTrackMatcherTest {
         repeat(119) { assertIs<SpotifyTrackMatcher.Outcome.Matched>(matcher.match(track(title = "Song $it"))) }
         assertEquals(119, fake.queries.size)
         assertEquals(0, fake.retries)
+    }
+
+    @Test fun allFeaturedSpellingsUseConsistentCleaning() = runBlocking<Unit> {
+        for (suffix in listOf("(feat. Bea)", "(feat Bea)", "(ft. Bea)", "(ft Bea)", "(with Bea)")) {
+            val fake = FakeSearch { _, _ -> success(song(title = "Paper Moon (with Bea)")) }
+            assertEquals("a", matchedId(fake.matcher().match(track(title = "Paper Moon $suffix"))))
+            assertEquals(listOf("the inventors paper moon"), fake.queries)
+        }
+    }
+
+    @Test fun soundtrackAndSeriesPresentationIsRemovedOnBothSides() = runBlocking<Unit> {
+        for (suffix in listOf(" - From \"A Film\" Soundtrack", " - From the Motion Picture A Film",
+            " - from the series A Story", " (Original Motion Picture Soundtrack)",
+            " - Soundtrack", " - Lyric Video")) {
+            val fake = FakeSearch { _, _ -> success(song(title = "Paper Moon$suffix")) }
+            assertEquals("a", matchedId(fake.matcher().match(track(title = "Paper Moon$suffix"))))
+            assertEquals(listOf("the inventors paper moon"), fake.queries)
+        }
+    }
+
+    @Test fun unicodePunctuationWhitespaceAndApostrophes() = runBlocking<Unit> {
+        val fake = FakeSearch { _, _ -> success(song(title = "Night's Light - Official Video")) }
+        assertEquals("a", matchedId(fake.matcher().match(track(title = "02. Night\u2019s\u00a0Light\u2003\u2014 Official Audio"))))
+        assertEquals(listOf("the inventors nights light"), fake.queries)
+    }
+
+    @Test fun cyrillicAndIndicMetadataRemainSearchable() = runBlocking<Unit> {
+        for ((title, artist) in listOf("\u041b\u0443\u043d\u043d\u044b\u0439 \u0441\u0432\u0435\u0442" to "\u041c\u0430\u044f\u043a",
+            "\u091a\u093e\u0901\u0926\u0928\u0940" to "\u0915\u0935\u093f")) {
+            val fake = FakeSearch { _, _ -> success(song(title, artist)) }
+            assertEquals("a", matchedId(fake.matcher().match(track("$title (with Bea)", artist))))
+            assertEquals(listOf("${SpotifyTrackMatcher.normalize(artist)} ${SpotifyTrackMatcher.normalize(title)}"), fake.queries)
+            assertTrue(SpotifyTrackMatcher.normalize(title).isNotBlank())
+        }
+    }
+
+    @Test fun everyMeaningfulVersionIsProtectedInBothDirections() = runBlocking<Unit> {
+        for (version in listOf("Cover", "Remix", "Live", "Acoustic", "Instrumental", "Slowed", "Sped Up", "Radio Edit", "Hindi")) {
+            for ((source, candidate) in listOf("Paper Moon ($version)" to "Paper Moon", "Paper Moon" to "Paper Moon ($version)")) {
+                val fake = FakeSearch { _, _ -> success(song(title = candidate)) }
+                assertIs<SpotifyTrackMatcher.Outcome.NoMatch>(fake.matcher().match(track(title = source)))
+                assertTrue(fake.queries.size <= 3)
+            }
+        }
+    }
+
+    @Test fun presentationCleanupCannotEraseEmbeddedVersion() = runBlocking<Unit> {
+        val fake = FakeSearch { _, _ -> success(song()) }
+        assertIs<SpotifyTrackMatcher.Outcome.NoMatch>(fake.matcher().match(track(title = "Paper Moon - From the series A Story (Live)")))
+    }
+
+    @Test fun broadFallbackRecoversOnlyWithLeadArtistAndVersionAgreement() = runBlocking<Unit> {
+        val fake = FakeSearch { _, attempt -> if (attempt < 3) success() else success(song()) }
+        assertEquals("a", matchedId(fake.matcher().match(track())))
+        assertEquals(listOf("the inventors paper moon", "paper moon the inventors", "paper moon"), fake.queries)
+        for (candidate in listOf(song(artist = "Unrelated"), song(title = "Paper Moon (Cover)"))) {
+            val reject = FakeSearch { _, attempt -> if (attempt < 3) success() else success(candidate) }
+            assertIs<SpotifyTrackMatcher.Outcome.NoMatch>(reject.matcher().match(track()))
+        }
+    }
+
+    @Test fun featureEnrichedFallbackIsBoundedAndCanRecover() = runBlocking<Unit> {
+        val fake = FakeSearch { query, _ -> if (query == "paper moon the inventors bea") success(song()) else success() }
+        assertEquals("a", matchedId(fake.matcher().match(track(title = "Paper Moon (with Bea)"))))
+        assertEquals(3, fake.queries.size)
+        val empty = FakeSearch { _, _ -> success() }
+        assertIs<SpotifyTrackMatcher.Outcome.NoMatch>(empty.matcher().match(track(title = "Paper Moon (with Bea)")))
+        assertEquals(4, empty.queries.size)
+        assertEquals(4, empty.queries.distinct().size)
+    }
+
+    @Test fun guestAgreementBreaksTiesWithoutReplacingLeadArtist() = runBlocking<Unit> {
+        val plain = song(id = "a")
+        val guest = song(id = "z").copy(artists = listOf(Artist(null, "The Inventors"), Artist(null, "Bea")))
+        for (candidates in listOf(listOf(plain, guest), listOf(guest, plain))) {
+            val fake = FakeSearch { _, _ -> ImportSongSearchResult.Success(candidates) }
+            assertEquals("z", matchedId(fake.matcher().match(track(title = "Paper Moon (with Bea)"))))
+        }
+        val wrong = FakeSearch { _, _ -> success(song(artist = "Bea", title = "Paper Moon (with Bea)")) }
+        assertIs<SpotifyTrackMatcher.Outcome.NoMatch>(wrong.matcher().match(track(title = "Paper Moon (with Bea)")))
+    }
+
+    @Test fun explicitlyDifferentGuestVersionIsRejected() = runBlocking<Unit> {
+        val fake = FakeSearch { _, _ -> success(song(title = "Paper Moon (with Cleo)")) }
+        assertIs<SpotifyTrackMatcher.Outcome.NoMatch>(fake.matcher().match(track(title = "Paper Moon (with Bea)")))
+    }
+
+    @Test fun retryBudgetIsSharedAcrossFallbacksAndFailuresAreNotCached() = runBlocking<Unit> {
+        val fake = FakeSearch { _, attempt -> when (attempt) {
+            1, 3 -> ImportSongSearchResult.Failure(true)
+            2 -> success()
+            else -> success(song())
+        } }
+        val matcher = fake.matcher()
+        assertIs<SpotifyTrackMatcher.Outcome.SearchFailed>(matcher.match(track()))
+        assertEquals(3, fake.queries.size)
+        assertEquals(1, fake.retries)
+        assertEquals("a", matchedId(matcher.match(track())))
+        assertEquals(4, fake.queries.size)
+    }
+
+    @Test fun equivalentPresentationReusesQueryCacheAndKeepsDuplicates() = runBlocking<Unit> {
+        val fake = FakeSearch { _, _ -> success(song()) }
+        val matcher = fake.matcher()
+        val sources = listOf(track(), track(title = "Paper Moon - from the series A Story"), track())
+        assertEquals(listOf("a", "a", "a"), sources.map { matchedId(matcher.match(it)) })
+        assertEquals(1, fake.queries.size)
     }
 }

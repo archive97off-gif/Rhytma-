@@ -40,6 +40,46 @@ internal fun spotifyImportAccent(): Color =
     if (LocalIsDarkTheme.current) Color(0xFFA9E2BD) else Color(0xFF24613C)
 
 @Composable
+internal fun PlaylistImportEntryCard(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Surface(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.Transparent,
+        contentColor = colors.onSurface,
+        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.55f)),
+    ) {
+        Row(
+            modifier = Modifier.background(Brush.linearGradient(listOf(
+                colors.surfaceContainerHigh.copy(alpha = 0.88f),
+                colors.surfaceContainerLow.copy(alpha = 0.72f),
+            ))).padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                    .background(spotifyImportAccent().copy(alpha = 0.10f)).padding(10.dp),
+            ) {
+                Icon(echoIcons.LibraryMusic, contentDescription = null,
+                    tint = spotifyImportAccent(), modifier = Modifier.size(24.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Import a playlist", color = colors.onSurface,
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text("Bring your playlists into Rhytma", color = colors.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall)
+                Text("Spotify \u2022 JioSaavn", color = spotifyImportAccent(),
+                    style = MaterialTheme.typography.labelMedium)
+            }
+            Icon(echoIcons.ArrowForwardIos, contentDescription = null,
+                tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@Composable
 internal fun ImportGlassCard(content: @Composable ColumnScope.() -> Unit) {
     val colors = MaterialTheme.colorScheme
     Surface(

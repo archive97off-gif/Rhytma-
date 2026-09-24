@@ -10,6 +10,8 @@ import echo.music.iad1tya.domain.data.model.home.chart.Chart
 import echo.music.iad1tya.domain.data.model.mood.Mood
 import echo.music.iad1tya.domain.manager.DataStoreManager
 import echo.music.iad1tya.domain.manager.DataStoreManager.Values.TRUE
+import echo.music.iad1tya.domain.repository.LocalPlaylistRepository
+import echo.music.iad1tya.domain.repository.SongRepository
 import echo.music.iad1tya.domain.repository.HomeRepository
 import echo.music.iad1tya.domain.utils.Resource
 import echo.music.iad1tya.logger.Logger
@@ -37,7 +39,28 @@ import echomusic.composeapp.generated.resources.view_count
 class HomeViewModel(
     private val dataStoreManager: DataStoreManager,
     private val homeRepository: HomeRepository,
+    private val songRepository: SongRepository,
+    localPlaylistRepository: LocalPlaylistRepository,
 ) : BaseViewModel() {
+    val localPlaylists = localPlaylistRepository.getAllLocalPlaylists()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _recentSongs = MutableStateFlow<List<SongEntity>>(emptyList())
+    val recentSongs: StateFlow<List<SongEntity>> = _recentSongs
+    private var recentJob: Job? = null
+
+    fun refreshRecentSongs() {
+        recentJob?.cancel()
+        recentJob = viewModelScope.launch {
+            try {
+                _recentSongs.value = songRepository.getRecentSong(limit = 20, offset = 0)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // Preserve the last local snapshot if the database is temporarily unavailable.
+            }
+        }
+    }
+
     private val _homeItemList: MutableStateFlow<List<HomeItem>> =
         MutableStateFlow(arrayListOf())
     val homeItemList: StateFlow<List<HomeItem>> = _homeItemList
