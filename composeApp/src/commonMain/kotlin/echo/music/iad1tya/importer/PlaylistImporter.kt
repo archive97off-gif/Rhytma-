@@ -27,6 +27,7 @@ data class ImportedTrackMatch(
     val source: ImportedTrack,
     val song: SongEntity?,
     val confidence: Double,
+    val searchFailed: Boolean = false,
 )
 
 interface PlaylistImporter {

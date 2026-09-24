@@ -109,7 +109,7 @@ fun SpotifyPlaylistImportScreen(
                                 ImportTextAction("Cancel", viewModel::clearFile)
                                 Text("Playlist preview", color = colors.onSurface, style = MaterialTheme.typography.titleMedium,
                                     modifier = Modifier.semantics { heading() })
-                                ImportSupportingText("TXT without a header is read as title then artist. Repeated tracks are kept.")
+                                ImportSupportingText("Repeated tracks are kept in playlist order.")
                             }
                         }
                         itemsIndexed(state.playlist!!.tracks) { index, track -> PlaylistPreviewRow(track, index + 1) }
@@ -122,13 +122,13 @@ fun SpotifyPlaylistImportScreen(
                         if (state.matches.any { it.song == null }) {
                             item {
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text("Unmatched songs", color = colors.onSurface, style = MaterialTheme.typography.titleMedium,
+                                    Text("Songs needing attention", color = colors.onSurface, style = MaterialTheme.typography.titleMedium,
                                         modifier = Modifier.semantics { heading() })
                                     ImportSupportingText("These songs couldn't be found. Your matched songs can still be imported.")
                                 }
                             }
                             itemsIndexed(state.matches.filter { it.song == null }) { index, match ->
-                                PlaylistPreviewRow(match.source, index + 1, status = "Not matched", unmatched = true)
+                                PlaylistPreviewRow(match.source, index + 1, status = if (match.searchFailed) "Search failed — retry when connected" else "No sufficiently confident match", unmatched = true)
                             }
                         }
                         if (!state.isFileImport) {
@@ -138,12 +138,13 @@ fun SpotifyPlaylistImportScreen(
                         }
                         if (state.savedPlaylistId == null && state.matches.any { it.song != null }) {
                             item {
-                                ImportAction(if (state.isFileImport) "Retry saving playlist" else "Import playlist",
+                                ImportAction("Import matched songs",
                                     viewModel::saveMatchedTracks, enabled = !state.isLoading)
                             }
                         }
-                        if (state.isFileImport && state.savedPlaylistId == null && !state.isLoading) {
-                            item { ImportTextAction("Retry matching", viewModel::importFile) }
+                        if (state.isFileImport && state.savedPlaylistId == null && !state.isLoading &&
+                            (state.matches.any { it.song == null } || state.matches.size < state.playlist!!.tracks.size)) {
+                            item { ImportTextAction("Retry problem tracks", viewModel::importFile) }
                         }
                     }
                     if (state.provider == PlaylistProvider.SPOTIFY) {

@@ -26,8 +26,8 @@ actual fun rememberPlaylistFilePicker(
                     require(cursor.isNull(1) || cursor.getLong(1) <= SpotifyPlaylistFileImporter.MAX_BYTES) { "Choose a playlist file smaller than 5 MB." }
                 }
             }
-            val fileName = name ?: error("Couldn't read the filename. Choose a CSV, TXT or JSON file from Downloads.")
-            require(fileName.substringAfterLast('.', "").lowercase() in setOf("csv", "txt", "json")) { "Choose a CSV, TXT or JSON playlist file." }
+            val fileName = name ?: error("Couldn't read the filename. Choose a CSV file from Downloads.")
+            require(fileName.substringAfterLast('.', "").lowercase() in setOf("csv", "txt", "json")) { "Choose a CSV playlist export." }
             val bytes = resolver.openInputStream(uri)?.use { input ->
                 val output = ByteArrayOutputStream()
                 val buffer = ByteArray(8192)

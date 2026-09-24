@@ -13,7 +13,7 @@ class SpotifyPlaylistFileImporter {
         val extension = fileName.substringAfterLast('.', "").lowercase()
 
         require(extension in setOf("csv", "txt", "json")) {
-            "Choose a CSV, TXT or JSON playlist file."
+            "Choose a CSV playlist export."
         }
 
         val text = try {
@@ -315,7 +315,7 @@ class SpotifyPlaylistFileImporter {
             }
 
         val message =
-            "We couldn't understand this playlist format. Try exporting the playlist as CSV or TXT again."
+            "We couldn't understand this playlist format. Try exporting the playlist as CSV again."
 
         require(lines.isNotEmpty()) {
             message

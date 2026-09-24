@@ -67,7 +67,7 @@ class PlaylistImportViewModel(
     }
 
     fun setProvider(provider: PlaylistProvider) {
-        if (state.value.isLoading) return
+        if (state.value.isLoading || state.value.provider == provider) return
         _state.value = PlaylistImportState(provider = provider)
     }
 
@@ -95,7 +95,7 @@ class PlaylistImportViewModel(
     fun cancelImport() {
         if (state.value.isSaving) return
         operation?.cancel()
-        _state.value = state.value.copy(isLoading = false, currentTrack = null, matches = emptyList(), progress = 0, matchingComplete = false)
+        _state.value = state.value.copy(isLoading = false, currentTrack = null, matchingComplete = state.value.matches.isNotEmpty())
     }
 
     fun clearFile() {
@@ -122,12 +122,9 @@ class PlaylistImportViewModel(
         val current = state.value
         val playlist = current.playlist ?: return
         if (current.isLoading || !current.isFileImport || current.savedPlaylistId != null) return
-        _state.value = current.copy(isLoading = true, matches = emptyList(), error = null, matchingComplete = false)
+        _state.value = current.copy(isLoading = true, error = null)
         operation = viewModelScope.launch {
-            if (matchPlaylist(playlist)) {
-                currentCoroutineContext().ensureActive()
-                saveMatchedTracks()
-            }
+            matchPlaylist(playlist)
         }
     }
 
@@ -137,23 +134,18 @@ class PlaylistImportViewModel(
         val spotifyMatcher = SpotifyTrackMatcher(search = { query ->
             searchRepository.getSearchDataSongForImport(query).first()
         })
-        val matches = mutableListOf<ImportedTrackMatch>()
+        val matches = state.value.matches.toMutableList()
         // Match each metadata identity once, but retain intentional source repetitions in order.
         val cache = mutableMapOf<ImportedTrack, ImportedTrackMatch>()
-        for (track in playlist.tracks) {
+        matches.filter { it.song != null }.forEach { cache[it.source] = it }
+        for ((index, track) in playlist.tracks.withIndex()) {
             currentCoroutineContext().ensureActive()
             _state.value = state.value.copy(currentTrack = track)
             val match = cache[track] ?: if (state.value.provider == PlaylistProvider.SPOTIFY) {
                 when (val outcome = withContext(Dispatchers.Default) { spotifyMatcher.match(track) }) {
                     is SpotifyTrackMatcher.Outcome.Matched -> ImportedTrackMatch(track, outcome.candidate.toSongEntity(), outcome.confidence)
                     is SpotifyTrackMatcher.Outcome.NoMatch -> ImportedTrackMatch(track, null, outcome.confidence)
-                    SpotifyTrackMatcher.Outcome.SearchFailed -> {
-                        _state.value = state.value.copy(
-                            isLoading = false, currentTrack = null, matchingComplete = false,
-                            error = "Search failed for '${track.title}'. This track was not marked unmatched. Check your connection and retry the import; nothing has been saved.",
-                        )
-                        return false
-                    }
+                    SpotifyTrackMatcher.Outcome.SearchFailed -> ImportedTrackMatch(track, null, 0.0, searchFailed = true)
                 }
             } else try {
                 withTimeoutOrNull(30_000) { withContext(Dispatchers.Default) { matchJioSaavnTrack(track) } }
@@ -162,8 +154,8 @@ class PlaylistImportViewModel(
             catch (_: Exception) { ImportedTrackMatch(track, null, 0.0) }
             currentCoroutineContext().ensureActive()
             cache[track] = match
-            matches.add(match)
-            _state.value = state.value.copy(matches = matches.toList(), progress = matches.size * 100 / playlist.tracks.size.coerceAtLeast(1))
+            if (index < matches.size) matches[index] = match else matches.add(match)
+            _state.value = state.value.copy(matches = matches.toList(), progress = (index + 1) * 100 / playlist.tracks.size.coerceAtLeast(1))
         }
         _state.value = state.value.copy(isLoading = false, currentTrack = null, matchingComplete = true, progress = 100)
         return true

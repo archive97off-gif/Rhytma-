@@ -59,7 +59,8 @@ android {
                     "bg",
                 )
         }
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = providers.gradleProperty("playlistTestRunner")
+            .getOrElse("androidx.test.runner.AndroidJUnitRunner")
 
         ndk {
             abiFilters.add("x86_64")

@@ -163,7 +163,7 @@ internal fun ImportGuideCard(compact: Boolean, onOpenWebsite: () -> Unit) {
         if (expanded) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             listOf("Open TuneMyMusic", "Choose Spotify and connect your account", "Select the playlist you want",
-                "Export it as CSV or TXT", "Return to Rhytma and choose the file", "Preview, match and import").forEachIndexed { index, text ->
+                "Export file → CSV", "Choose CSV file in Rhytma", "Preview, match and import").forEachIndexed { index, text ->
                 ImportStep(index + 1, text)
             }
         }
@@ -226,9 +226,9 @@ internal fun ImportTextAction(label: String, onClick: () -> Unit, enabled: Boole
 @Composable
 internal fun PlaylistFileAction(hasPlaylist: Boolean, enabled: Boolean, onChoose: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        ImportAction(if (hasPlaylist) "Change Playlist File" else "Choose Playlist File", onChoose, enabled,
+        ImportAction(if (hasPlaylist) "Change CSV file" else "Choose CSV file", onChoose, enabled,
             primary = !hasPlaylist, icon = echoIcons.Add)
-        ImportSupportingText("CSV \u2022 TXT \u2022 JSON  /  Maximum 5 MB")
+        ImportSupportingText("TuneMyMusic CSV export / Maximum 5 MB")
     }
 }
 
@@ -309,7 +309,8 @@ internal fun ImportProgressCard(state: PlaylistImportState, onCancel: () -> Unit
 @Composable
 internal fun ImportResultCard(state: PlaylistImportState, onOpen: (Long) -> Unit) {
     val matched = state.matches.count { it.song != null }
-    val unmatched = state.matches.size - matched
+    val unmatched = state.matches.count { it.song == null && !it.searchFailed }
+    val failed = state.matches.count { it.searchFailed }
     ImportGlassCard {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(if (state.savedPlaylistId != null) echoIcons.CheckCircle else echoIcons.LibraryMusic,
@@ -320,7 +321,7 @@ internal fun ImportResultCard(state: PlaylistImportState, onOpen: (Long) -> Unit
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("$matched songs matched", color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.titleMedium)
-            ImportSupportingText("$unmatched couldn't be found")
+            ImportSupportingText("$unmatched unmatched · $failed search failures")
         }
         if (matched == 0) ImportSupportingText("No playlist was created. Check the metadata or your connection, then try again.")
         state.savedPlaylistId?.let { id -> ImportAction("Open Playlist", { onOpen(id) }, icon = echoIcons.PlayArrow) }
